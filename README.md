@@ -11,6 +11,17 @@ Mini-CMS évoluera au fil du semestre vers une petite plateforme de publication 
 - Routes en closures : `/`, `/bonjour`, `/bonjour-court`, `/bienvenue`, `/version`, `/heure` et `/a-propos`.
 - Vues Blade : `bienvenue`, `heure` et `a-propos`.
 - Base de données SQLite locale (`database/database.sqlite`, non versionnée).
+## Routes disponibles
+
+| Méthode | URI | Réponse |
+|---|---|---|
+| GET | `/` | Vue `welcome` |
+| GET | `/bonjour` | Texte de bienvenue en français |
+| GET | `/bonjour-court` | Même réponse que `/bonjour`, avec une fonction fléchée |
+| GET | `/bienvenue` | Vue `bienvenue` avec l'étudiant, le groupe et le cours |
+| GET | `/version` | Version de Laravel et version de PHP |
+| GET | `/heure` | Vue `heure` avec l'heure et la date |
+| GET | `/a-propos` | Vue `a-propos` avec le nom de l'auteur et le groupe |
 
 ## Prérequis
 
