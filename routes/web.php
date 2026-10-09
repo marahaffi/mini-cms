@@ -14,8 +14,26 @@ Route::get('/bonjour-court', fn () => 'Même résultat, écrit avec une fonction
 
 Route::get('/bienvenue', function () {
     return view('bienvenue', [
-        'etudiant' => 'Prenom Nom',
+        'etudiant' => 'marah affi',
         'groupe' => 'MDW32',
         'cours' => 'Atelier Framework Côté Serveur',
+    ]);
+});
+
+Route::get('/version', function () {
+    return 'Laravel ' . app()->version() . ' - PHP ' . PHP_VERSION;
+});
+
+Route::get('/heure', function () {
+    return view('heure', [
+        'heure' => now()->format('H:i'),
+        'date' => now()->format('d/m/Y'),
+    ]);
+});
+
+Route::get('/a-propos', function () {
+    return view('a-propos', [
+        'auteur' => 'marah affi',
+        'groupe' => 'MDW32',
     ]);
 });
