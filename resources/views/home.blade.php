@@ -1,20 +1,28 @@
 <x-layout>
     <x-slot:title>Accueil - Mini-CMS</x-slot:title>
 
-    <section class="py-10">
-        <h1 class="text-4xl font-bold mb-4">
-            Bienvenue sur Mini-CMS
-        </h1>
+    <section class="mt-10">
+    <h2 class="mb-6 text-2xl font-bold">
+        Derniers articles publiés
+    </h2>
 
-        <p class="text-lg text-gray-600 mb-6 max-w-2xl">
-            Une petite plateforme de publication construite pas à pas pendant l'Atelier Framework Côté Serveur.
-        </p>
+    <div class="grid gap-6 md:grid-cols-2">
+        @forelse ($latestPosts as $post)
+            <x-post-card :post="$post" />
+        @empty
+            <x-alert type="info" title="Aucun article publié">
+                Aucun article publié pour le moment.
+            </x-alert>
+        @endforelse
+    </div>
 
+    <div class="mt-6">
         <a href="{{ route('posts.index') }}"
-           class="inline-block rounded-md bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700">
-            Lire les articles
+           class="text-indigo-600 hover:underline">
+            Voir tous les articles
         </a>
-    </section>
+    </div>
+</section>
 
     <x-alert type="success" title="Sprint en cours">
         Les composants Blade évitent de recopier le même code HTML dans chaque page.

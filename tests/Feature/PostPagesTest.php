@@ -49,3 +49,25 @@ it('shows the create form', function () {
         ->assertOk()
         ->assertSee('Nouvel article');
 });
+it('affiche les articles publies mais pas les brouillons sur l accueil', function () {
+    Post::create([
+        'title' => 'Article publie sur accueil',
+        'slug' => 'article-publie-accueil',
+        'body' => 'Contenu publie suffisamment long pour le test.',
+        'is_published' => true,
+        'published_at' => now(),
+    ]);
+
+    Post::create([
+        'title' => 'Brouillon cache sur accueil',
+        'slug' => 'brouillon-cache-accueil',
+        'body' => 'Contenu brouillon suffisamment long pour le test.',
+        'is_published' => false,
+        'published_at' => null,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Article publie sur accueil')
+        ->assertDontSee('Brouillon cache sur accueil');
+});
