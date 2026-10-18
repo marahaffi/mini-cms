@@ -1,25 +1,26 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Post;
 use Illuminate\View\View;
 
 class PageController extends Controller
 {
     public function home(): View
-{
-    return view('home', [
-        'latestPosts' => Post::where('is_published', true)
-            ->latest('published_at')
-            ->take(3)
-            ->get(),
-    ]);
-}
+    {
+        return view('home', [
+            'latestPosts' => Post::published()
+                ->latest('published_at')
+                ->take(3)
+                ->get(),
+        ]);
+    }
 
     public function about(): View
     {
         return view('a-propos', [
-            'auteur' => 'Marah Affi',
+            'auteur' => 'Prenom Nom',
             'groupe' => 'MDW32',
         ]);
     }
