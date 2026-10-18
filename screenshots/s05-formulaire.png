@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<!-- saved from url=(0057)http://localhost:8000/posts/create?utm_source=chatgpt.com -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouvel article - Mini-CMS</title>
+    <script type="module" src="./s05-formulaire_files/client"></script><link rel="stylesheet" href="./s05-formulaire_files/app.css"><script type="module" src="./s05-formulaire_files/app.js.download"></script><script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://localhost:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Walk own enumerable keys so JSON.stringify cannot auto-invoke a proxy fake toJSON (e.g. Livewire's `$wire`) and fire a real request.
+    function toSafeValue(value, seen) {
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+        if (value instanceof Error) {
+            return { name: value.name, message: value.message, stack: value.stack };
+        }
+        // Date has no own enumerable keys, so the walk below would collapse it to {}.
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (seen.has(value)) {
+            return '[Circular]';
+        }
+        seen.add(value);
+        if (Array.isArray(value)) {
+            return value.map((item) => toSafeValue(item, seen));
+        }
+        const plain = {};
+        for (const key of Object.keys(value)) {
+            if (key === 'toJSON') continue;
+            try {
+                plain[key] = toSafeValue(value[key], seen);
+            } catch (e) {
+                plain[key] = '[Unreadable]';
+            }
+        }
+        return plain;
+    }
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        return JSON.stringify(toSafeValue(obj, new WeakSet()));
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: toSafeValue(event.reason, new WeakSet())
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+    <header class="bg-white border-b border-gray-200">
+    <nav class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2" aria-label="Navigation principale">
+
+        <a href="http://localhost:8000/" class="font-bold text-lg text-indigo-600 mr-4">
+            Mini-CMS
+        </a>
+
+        <a href="http://localhost:8000/" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Accueil
+</a>        <a href="http://localhost:8000/posts" aria-current="page" class="px-3 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">
+    Articles
+</a>        <a href="http://localhost:8000/heure" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Heure
+</a>        <a href="http://localhost:8000/a-propos" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    À propos
+</a>
+    </nav>
+</header>
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+        <div class="mb-6">
+    <h1 class="text-3xl font-bold">Nouvel article</h1>
+
+            <p class="mt-2 text-gray-600">Chaque champ est vérifié par le serveur.</p>
+    </div>
+    
+    <form method="POST" action="http://localhost:8000/posts" class="max-w-2xl space-y-5">
+        <input type="hidden" name="_token" value="IYdWxm4FgLNF1ByQbG4H052lx7bXrm1Hr87UpxtE" autocomplete="off">
+        <div>
+            <label for="title" class="block text-sm font-medium text-gray-700">Titre</label>
+            <input type="text" id="title" name="title" value="" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                    </div>
+
+        <div>
+            <label for="slug" class="block text-sm font-medium text-gray-700">Slug (minuscules, chiffres et tirets)</label>
+            <input type="text" id="slug" name="slug" value="" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2">
+                    </div>
+
+        <div>
+            <label for="body" class="block text-sm font-medium text-gray-700">Contenu</label>
+            <textarea id="body" name="body" rows="8" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"></textarea>
+                    </div>
+
+        <div class="flex items-center gap-2">
+            <input type="checkbox" id="is_published" name="is_published" value="1">
+            <label for="is_published" class="text-sm text-gray-700">Publier immédiatement</label>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button type="submit" class="rounded-md bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700">Enregistrer</button>
+            <a href="http://localhost:8000/posts" class="text-sm text-gray-600 hover:underline">Annuler</a>
+        </div>
+    </form>
+    </main>
+
+    <footer class="border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+        Mini-CMS - Atelier Framework Côté Serveur - ISET Sidi Bouzid
+    </footer>
+
+</body></html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<!-- saved from url=(0050)http://localhost:8000/posts?utm_source=chatgpt.com -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tous les articles - Mini-CMS</title>
+    <script type="module" src="./s05-articles_files/client"></script><link rel="stylesheet" href="./s05-articles_files/app.css"><script type="module" src="./s05-articles_files/app.js.download"></script><script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://localhost:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Walk own enumerable keys so JSON.stringify cannot auto-invoke a proxy fake toJSON (e.g. Livewire's `$wire`) and fire a real request.
+    function toSafeValue(value, seen) {
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+        if (value instanceof Error) {
+            return { name: value.name, message: value.message, stack: value.stack };
+        }
+        // Date has no own enumerable keys, so the walk below would collapse it to {}.
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (seen.has(value)) {
+            return '[Circular]';
+        }
+        seen.add(value);
+        if (Array.isArray(value)) {
+            return value.map((item) => toSafeValue(item, seen));
+        }
+        const plain = {};
+        for (const key of Object.keys(value)) {
+            if (key === 'toJSON') continue;
+            try {
+                plain[key] = toSafeValue(value[key], seen);
+            } catch (e) {
+                plain[key] = '[Unreadable]';
+            }
+        }
+        return plain;
+    }
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        return JSON.stringify(toSafeValue(obj, new WeakSet()));
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: toSafeValue(event.reason, new WeakSet())
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+    <header class="bg-white border-b border-gray-200">
+    <nav class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2" aria-label="Navigation principale">
+
+        <a href="http://localhost:8000/" class="font-bold text-lg text-indigo-600 mr-4">
+            Mini-CMS
+        </a>
+
+        <a href="http://localhost:8000/" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Accueil
+</a>        <a href="http://localhost:8000/posts" aria-current="page" class="px-3 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">
+    Articles
+</a>        <a href="http://localhost:8000/heure" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Heure
+</a>        <a href="http://localhost:8000/a-propos" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    À propos
+</a>
+    </nav>
+</header>
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+        <div class="mb-6">
+    <h1 class="text-3xl font-bold">Tous les articles</h1>
+
+    </div>    <a href="http://localhost:8000/posts/create" class="inline-block mb-6 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Nouvel article</a>
+
+    <div class="grid gap-6 md:grid-cols-2">
+                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/8" class="hover:text-indigo-600">Article de vérification</a>
+        </h2>
+                    <span class="text-xs font-medium bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">Brouillon</span>
+            </div>
+
+    <p class="text-sm text-gray-600">Ceci est un article de test valide pour vérifier la création avec Laravel.</p>
+
+    <p class="text-xs text-gray-500">
+                    Non publié
+            </p>
+
+    <a href="http://localhost:8000/posts/8" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/7" class="hover:text-indigo-600">Mon article test</a>
+        </h2>
+                    <span class="text-xs font-medium bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">Brouillon</span>
+            </div>
+
+    <p class="text-sm text-gray-600">Ceci est un texte pour tester la validation du formulaire</p>
+
+    <p class="text-xs text-gray-500">
+                    Non publié
+            </p>
+
+    <a href="http://localhost:8000/posts/7" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/6" class="hover:text-indigo-600">Article de test 4</a>
+        </h2>
+            </div>
+
+    <p class="text-sm text-gray-600">Contenu de l'article de test 4, saisi depuis Tinker.</p>
+
+    <p class="text-xs text-gray-500">
+                    Publié le 18/10/2026 -
+            <a href="http://localhost:8000/posts/archive/2026" class="underline">Archive 2026</a>
+            </p>
+
+    <a href="http://localhost:8000/posts/6" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/5" class="hover:text-indigo-600">Article de test 3</a>
+        </h2>
+                    <span class="text-xs font-medium bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">Brouillon</span>
+            </div>
+
+    <p class="text-sm text-gray-600">Contenu de l'article de test 3, saisi depuis Tinker.</p>
+
+    <p class="text-xs text-gray-500">
+                    Non publié
+            </p>
+
+    <a href="http://localhost:8000/posts/5" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>            </div>
+
+    <div class="mt-8">
+        <nav role="navigation" aria-label="Pagination Navigation">
+
+        <div class="flex gap-2 items-center justify-between sm:hidden">
+
+                            <span class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 cursor-not-allowed leading-5 rounded-md dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600">
+                    « Previous
+                </span>
+            
+                            <a href="http://localhost:8000/posts?page=2" rel="next" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-800 bg-white border border-gray-300 leading-5 rounded-md hover:text-gray-700 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-800 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:focus:border-blue-700 dark:active:bg-gray-700 dark:active:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 dark:hover:text-gray-200">
+                    Next »
+                </a>
+            
+        </div>
+
+        <div class="hidden sm:flex-1 sm:flex sm:gap-2 sm:items-center sm:justify-between">
+
+            <div>
+                <p class="text-sm text-gray-700 leading-5 dark:text-gray-600">
+                    Showing
+                                            <span class="font-medium">1</span>
+                        to
+                        <span class="font-medium">4</span>
+                                        of
+                    <span class="font-medium">8</span>
+                    results
+                </p>
+            </div>
+
+            <div>
+                <span class="inline-flex rtl:flex-row-reverse shadow-sm rounded-md">
+
+                    
+                                            <span aria-disabled="true" aria-label="&amp;laquo; Previous">
+                            <span class="inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 cursor-not-allowed rounded-l-md leading-5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400" aria-hidden="true">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                            </span>
+                        </span>
+                    
+                    
+                                            
+                        
+                        
+                                                                                                                        <span aria-current="page">
+                                        <span class="inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-gray-200 border border-gray-300 cursor-default leading-5 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">1</span>
+                                    </span>
+                                                                                                                                <a href="http://localhost:8000/posts?page=2" class="inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-700 bg-white border border-gray-300 leading-5 hover:text-gray-700 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-700 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:text-gray-300 dark:active:bg-gray-700 dark:focus:border-blue-800 hover:bg-gray-100 dark:hover:bg-gray-900" aria-label="Go to page 2">
+                                        2
+                                    </a>
+                                                                                                        
+                    
+                                            <a href="http://localhost:8000/posts?page=2" rel="next" class="inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md leading-5 hover:text-gray-400 focus:outline-none focus:ring ring-gray-300 focus:border-blue-300 active:bg-gray-100 active:text-gray-500 transition ease-in-out duration-150 dark:bg-gray-800 dark:border-gray-600 dark:active:bg-gray-700 dark:focus:border-blue-800 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-gray-300" aria-label="Next &amp;raquo;">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </a>
+                                    </span>
+            </div>
+        </div>
+    </nav>
+
+    </div>
+    </main>
+
+    <footer class="border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+        Mini-CMS - Atelier Framework Côté Serveur - ISET Sidi Bouzid
+    </footer>
+
+</body></html>
