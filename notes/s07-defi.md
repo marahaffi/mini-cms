@@ -1,9 +1,15 @@
 # Session 07 - Défi : articles de la même catégorie
 
-La section « Dans la même catégorie » apparaît sous un article publié qui a une catégorie : oui / non
-L'article affiché n'apparaît pas dans sa propre section : oui / non
-Un brouillon de la même catégorie n'apparaît pas : oui / non
-La page s'ouvre sans LazyLoadingViolationException : oui / non
-Le nouveau test passe et php artisan test est vert : oui / non
+La section « Dans la même catégorie » apparaît sous un article publié qui a une catégorie : oui
+
+L'article affiché n'apparaît pas dans sa propre section : oui
+
+Un brouillon de la même catégorie n'apparaît pas : oui
+
+La page s'ouvre sans LazyLoadingViolationException : oui
+
+Le nouveau test passe et php artisan test est vert : oui
 
 Combien de requêtes SQL charge la section, et pourquoi pas une par carte ?
+
+4 requêtes SQL : une pour les articles associés, puis une pour chaque relation chargée avec with() : user, category et tags. Les relations sont chargées en lots, pas avec une requête par carte.
