@@ -11,6 +11,7 @@ Route::get('/heure', [PageController::class, 'time'])->name('time');
 Route::get('/posts/archive/{year}', [PostController::class, 'archive'])
     ->whereNumber('year')
     ->name('posts.archive');
-Route::patch('/posts/{post}/publication', [PostController::class, 'togglePublication'])
-    ->name('posts.publication');
-Route::resource('posts', PostController::class)->only(['index', 'show', 'create', 'store', 'edit', 'update', 'destroy']);
+Route::get('/posts/categorie/{category:slug}', [PostController::class, 'byCategory'])->name('posts.category');
+
+Route::resource('posts', PostController::class);
+Route::patch('/posts/{post}/publication', [PostController::class, 'togglePublication'])->name('posts.publication');
