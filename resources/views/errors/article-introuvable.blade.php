@@ -6,6 +6,17 @@
     <x-alert type="info" title="Que faire ?" class="max-w-2xl">
         Vérifiez l'adresse, ou parcourez la liste des articles.
     </x-alert>
+    @if ($recentPosts->isNotEmpty())
+    <section class="mt-10">
+        <h2 class="text-xl font-semibold mb-6">Articles récents</h2>
+
+        <div class="grid gap-6 md:grid-cols-2">
+            @foreach ($recentPosts as $post)
+                <x-post-card :post="$post" />
+            @endforeach
+        </div>
+    </section>
+@endif
 
     <p class="mt-6">
         <a href="{{ route('posts.index') }}" class="font-medium text-indigo-600 hover:underline">Voir tous les articles</a>
