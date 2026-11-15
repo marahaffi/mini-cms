@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- saved from url=(0061)http://localhost:8000/page-inexistante?utm_source=chatgpt.com -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page introuvable - Mini-CMS</title>
+    <script type="module" src="./s10-404_files/client"></script><link rel="stylesheet" href="./s10-404_files/app.css"><script type="module" src="./s10-404_files/app.js.download"></script></head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+    <header class="bg-white border-b border-gray-200">
+    <nav class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2" aria-label="Navigation principale">
+
+        <a href="http://localhost:8000/" class="font-bold text-lg text-indigo-600 mr-4">
+            Mini-CMS
+        </a>
+
+        <a href="http://localhost:8000/" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Accueil
+</a>        <a href="http://localhost:8000/posts" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Articles
+</a>        <a href="http://localhost:8000/heure" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Heure
+</a>        <a href="http://localhost:8000/a-propos" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    À propos
+</a>
+    </nav>
+</header>
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+                
+        <h1 class="text-3xl font-bold text-gray-900">Page introuvable</h1>
+    <p class="mt-2 mb-8 text-gray-600">L'adresse demandée n'existe pas ou a été déplacée.</p>
+
+    <div role="status" class="border-l-4 p-4 rounded border-blue-500 bg-blue-50 text-blue-900 max-w-2xl">
+            <p class="font-semibold">Erreur 404</p>
+    
+    <div class="text-sm">Vérifiez l'adresse, ou repartez de la page d'accueil.</div>
+</div>
+    <p class="mt-6">
+        <a href="http://localhost:8000/" class="font-medium text-indigo-600 hover:underline">Retour à l'accueil</a>
+    </p>
+    </main>
+
+    <footer class="border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+        Mini-CMS - Atelier Framework Côté Serveur - ISET Sidi Bouzid
+    </footer>
+
+</body></html>

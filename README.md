@@ -117,3 +117,10 @@ Ouvrir ensuite http://localhost:8000 (adresse de l'application, différente de c
 ![Page d'un article avec le message flash « Article créé. »](screenshots/s09-message-flash.png)
 
 ![Page Article introuvable pour un identifiant inexistant](screenshots/s09-article-introuvable.png)
+### Session 10
+
+Back-office des catégories et des tags, messages de validation en français, pages 404 et 503 dans le layout du site.
+
+![Formulaire de catégorie envoyé vide, avec les messages de validation en français](screenshots/s10-validation.png)
+
+![Page 404 du site pour une adresse inconnue](screenshots/s10-404.png)
