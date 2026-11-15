@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureSiteIsWritable;
 use App\Models\Post;
+use App\Models\Category;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -41,6 +42,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
     return response()->view('errors.article-introuvable', [
         'recentPosts' => $recentPosts,
+    ], 404);
+}
+if ($previous instanceof ModelNotFoundException && $previous->getModel() === Category::class) {
+    $categories = Category::orderBy('name')->get();
+
+    return response()->view('errors.categorie-introuvable', [
+        'categories' => $categories,
     ], 404);
 }
             return null;
