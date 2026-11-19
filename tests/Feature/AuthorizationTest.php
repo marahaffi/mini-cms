@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Models\Post;
@@ -92,4 +93,31 @@ it('keeps the category back office for admins', function () {
     $this->actingAs(User::factory()->admin()->create())
         ->get(route('admin.categories.index'))
         ->assertOk();
+});
+
+// Niveau 3 - Mes articles
+
+it('shows only the authenticated user posts on my posts page', function () {
+    $user = User::factory()->create();
+
+    Post::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Mon article personnel',
+    ]);
+
+    Post::factory()->create([
+        'user_id' => User::factory()->create()->id,
+        'title' => 'Article autre utilisateur',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('my-posts'))
+        ->assertOk()
+        ->assertSee('Mon article personnel')
+        ->assertDontSee('Article autre utilisateur');
+});
+
+it('redirects a guest from my posts page to login', function () {
+    $this->get(route('my-posts'))
+        ->assertRedirect(route('login'));
 });

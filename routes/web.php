@@ -28,6 +28,9 @@ Route::middleware('guest')->group(function () {
 Route::post('/deconnexion', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+    Route::get('/mes-articles', [PostController::class, 'myPosts'])
+    ->middleware('auth')
+    ->name('my-posts');
 
 Route::middleware('writable')->group(function () {
     Route::middleware('auth')->group(function () {
