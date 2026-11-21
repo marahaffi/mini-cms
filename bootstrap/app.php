@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Middleware\EnsureSiteIsWritable;
-use App\Models\Post;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Models\Category;
+use App\Models\Post;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'writable' => EnsureSiteIsWritable::class,
+            'admin' => EnsureUserIsAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -34,23 +36,24 @@ return Application::configure(basePath: dirname(__DIR__))
             $previous = $e->getPrevious();
 
             if ($previous instanceof ModelNotFoundException && $previous->getModel() === Post::class) {
-    $recentPosts = Post::published()
-        ->with('user', 'category', 'tags')
-        ->latest('published_at')
-        ->take(3)
-        ->get();
+                $recentPosts = Post::published()
+                    ->with('user', 'category', 'tags')
+                    ->latest('published_at')
+                    ->take(3)
+                    ->get();
 
-    return response()->view('errors.article-introuvable', [
-        'recentPosts' => $recentPosts,
-    ], 404);
-}
-if ($previous instanceof ModelNotFoundException && $previous->getModel() === Category::class) {
-    $categories = Category::orderBy('name')->get();
+                return response()->view('errors.article-introuvable', [
+                    'recentPosts' => $recentPosts,
+                ], 404);
+            }
+            if ($previous instanceof ModelNotFoundException && $previous->getModel() === Category::class) {
+                $categories = Category::orderBy('name')->get();
 
-    return response()->view('errors.categorie-introuvable', [
-        'categories' => $categories,
-    ], 404);
-}
+                return response()->view('errors.categorie-introuvable', [
+                    'categories' => $categories,
+                ], 404);
+            }
+
             return null;
         });
     })->create();

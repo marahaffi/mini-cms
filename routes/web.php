@@ -28,7 +28,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/deconnexion', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
-    Route::get('/mes-articles', [PostController::class, 'myPosts'])
+Route::get('/mes-articles', [PostController::class, 'myPosts'])
     ->middleware('auth')
     ->name('my-posts');
 
@@ -37,7 +37,7 @@ Route::middleware('writable')->group(function () {
         Route::resource('posts', PostController::class)->except(['index', 'show']);
         Route::patch('/posts/{post}/publication', [PostController::class, 'togglePublication'])->name('posts.publication');
 
-        Route::prefix('admin')->name('admin.')->group(function () {
+        Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
             Route::resource('categories', CategoryController::class)->except('show');
             Route::resource('tags', TagController::class)->except('show');
         });
