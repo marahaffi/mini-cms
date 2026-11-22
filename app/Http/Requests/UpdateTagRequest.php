@@ -13,7 +13,7 @@ class UpdateTagRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('manage-tags');
     }
 
     /**
@@ -26,18 +26,6 @@ class UpdateTagRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('tags', 'name')->ignore($this->route('tag'))],
             'slug' => ['required', 'string', 'max:255', Rule::unique('tags', 'slug')->ignore($this->route('tag'))],
-        ];
-    }
-
-    /**
-     * Get the custom messages for validator errors.
-     *
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'slug.unique' => 'Ce slug est déjà utilisé par un autre tag.',
         ];
     }
 }

@@ -12,7 +12,7 @@ class StoreTagRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('manage-tags');
     }
 
     /**
@@ -27,16 +27,10 @@ class StoreTagRequest extends FormRequest
             'slug' => ['required', 'string', 'max:255', 'unique:tags,slug'],
         ];
     }
-
-    /**
-     * Get the custom messages for validator errors.
-     *
-     * @return array<string, string>
-     */
     public function messages(): array
-    {
-        return [
-            'slug.unique' => 'Ce slug est déjà utilisé par un autre tag.',
-        ];
-    }
+{
+    return [
+        'slug.unique' => 'Ce slug est déjà utilisé par un autre tag.',
+    ];
+}
 }
