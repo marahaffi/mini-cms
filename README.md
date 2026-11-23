@@ -146,3 +146,22 @@ Back-office des catégories et des tags, messages de validation en français, pa
 ![Barre de navigation d'un utilisateur connecté, avec le message « Vous êtes connecté. »](screenshots/s11-connexion.png)
 
 ![Page 403 quand un auteur ouvre la modification de l'article d'un autre auteur](screenshots/s11-interdit.png)
+
+![Page 403 quand un auteur ouvre la modification de l'article d'un autre auteur](screenshots/s11-interdit.png)
+
+## Comparaison avec le starter kit Livewire
+
+| Critère | Mini-CMS (authentification manuelle) | Starter kit Livewire |
+|---|---|---|
+| Routes d'authentification | `routes/web.php` (`/inscription`, `/connexion`, `/deconnexion`) | Enregistrées par Fortify, absentes de `routes/web.php` |
+| Inscription | `Auth\RegisterController` | `app/Actions/Fortify/CreateNewUser.php` et `resources/views/pages/auth/register.blade.php` |
+| Connexion | `Auth\LoginController::store` (`Auth::attempt`, `regenerate`) | Contrôleur de Fortify et `resources/views/pages/auth/login.blade.php` |
+| Déconnexion | `Auth\LoginController::destroy` (`logout`, `invalidate`, `regenerateToken`) | Route logout de Fortify et `app/Livewire/Actions/Logout.php` |
+| Limitation des tentatives | Aucune | 5 tentatives par minute par e-mail et adresse IP |
+| Mot de passe oublié | Absent | `Features::resetPasswords()` dans `config/fortify.php` |
+| Vérification de l'e-mail | Absente | `Features::emailVerification()`, `MustVerifyEmail` sur User, middleware `verified` sur `/dashboard` |
+| Double authentification | Absente | `Features::twoFactorAuthentication()` et `Features::passkeys()` |
+| Rôles et autorisations | Colonne `role`, Gates, `PostPolicy`, middleware `admin` | Aucun : à écrire soi-même |
+| Tests | `AuthTest`, `AuthorizationTest`, `AdminAccessTest`, `PostVisibilityTest` | 10 fichiers dans `tests/Feature` (Auth, Settings, Dashboard), écrits avec PHPUnit |
+
+**Ce que je garderais du kit dans un vrai projet :** Je garderais la limitation des tentatives de connexion pour protéger l'application contre les attaques par force brute. Je garderais aussi la vérification de l'e-mail et la fonctionnalité de réinitialisation du mot de passe pour améliorer la sécurité et faciliter la gestion des comptes utilisateurs.
