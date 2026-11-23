@@ -151,17 +151,16 @@ Back-office des catégories et des tags, messages de validation en français, pa
 
 ## Comparaison avec le starter kit Livewire
 
+
 | Critère | Mini-CMS (authentification manuelle) | Starter kit Livewire |
 |---|---|---|
 | Routes d'authentification | `routes/web.php` (`/inscription`, `/connexion`, `/deconnexion`) | Enregistrées par Fortify, absentes de `routes/web.php` |
-| Inscription | `Auth\RegisterController` | `app/Actions/Fortify/CreateNewUser.php` et `resources/views/pages/auth/register.blade.php` |
-| Connexion | `Auth\LoginController::store` (`Auth::attempt`, `regenerate`) | Contrôleur de Fortify et `resources/views/pages/auth/login.blade.php` |
-| Déconnexion | `Auth\LoginController::destroy` (`logout`, `invalidate`, `regenerateToken`) | Route logout de Fortify et `app/Livewire/Actions/Logout.php` |
-| Limitation des tentatives | Aucune | 5 tentatives par minute par e-mail et adresse IP |
-| Mot de passe oublié | Absent | `Features::resetPasswords()` dans `config/fortify.php` |
-| Vérification de l'e-mail | Absente | `Features::emailVerification()`, `MustVerifyEmail` sur User, middleware `verified` sur `/dashboard` |
-| Double authentification | Absente | `Features::twoFactorAuthentication()` et `Features::passkeys()` |
-| Rôles et autorisations | Colonne `role`, Gates, `PostPolicy`, middleware `admin` | Aucun : à écrire soi-même |
-| Tests | `AuthTest`, `AuthorizationTest`, `AdminAccessTest`, `PostVisibilityTest` | 10 fichiers dans `tests/Feature` (Auth, Settings, Dashboard), écrits avec PHPUnit |
-
-**Ce que je garderais du kit dans un vrai projet :** Je garderais la limitation des tentatives de connexion pour protéger l'application contre les attaques par force brute. Je garderais aussi la vérification de l'e-mail et la fonctionnalité de réinitialisation du mot de passe pour améliorer la sécurité et faciliter la gestion des comptes utilisateurs.
+| Inscription | `app/Http/Controllers/Auth/RegisterController.php` | `app/Actions/Fortify/CreateNewUser.php` et `resources/views/pages/auth/register.blade.php` |
+| Connexion | `app/Http/Controllers/Auth/LoginController.php` (`store`) | Contrôleur de Fortify et `resources/views/pages/auth/login.blade.php` |
+| Déconnexion | `app/Http/Controllers/Auth/LoginController.php` (`destroy`) | Route logout de Fortify et `app/Livewire/Actions/Logout.php` |
+| Limitation des tentatives | Non implémentée : `app/Http/Controllers/Auth/LoginController.php` | 5 tentatives par minute par e-mail et adresse IP |
+| Mot de passe oublié | Non implémenté : aucune route dédiée dans `routes/web.php` | `Features::resetPasswords()` dans `config/fortify.php` |
+| Vérification de l'e-mail | Absente : `app/Models/User.php` n'implémente pas `MustVerifyEmail` | `Features::emailVerification()`, `MustVerifyEmail` sur User, middleware `verified` sur `/dashboard` |
+| Double authentification | Non implémentée : aucune fonctionnalité dédiée dans `routes/web.php` | `Features::twoFactorAuthentication()` et `Features::passkeys()` |
+| Rôles et autorisations | `app/Models/User.php`, `app/Providers/AppServiceProvider.php`, `app/Policies/PostPolicy.php`, `app/Http/Middleware/EnsureUserIsAdmin.php` | Aucun : à écrire soi-même |
+| Tests | `tests/Feature/AuthTest.php`, `tests/Feature/AuthorizationTest.php`, `tests/Feature/AdminAccessTest.php`, `tests/Feature/PostVisibilityTest.php`, `tests/Feature/UserRoleTest.php` | 10 fichiers dans `tests/Feature` (Auth, Settings, Dashboard), écrits avec PHPUnit |
