@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CategoryController;
@@ -15,8 +16,12 @@ Route::get('/heure', [PageController::class, 'time'])->name('time');
 Route::get('/posts/archive/{year}', [PostController::class, 'archive'])
     ->whereNumber('year')
     ->name('posts.archive');
-Route::get('/posts/categorie/{category:slug}', [PostController::class, 'byCategory'])->name('posts.category');
-Route::get('/posts/tag/{tag:slug}', [PostController::class, 'byTag'])->name('posts.tag');
+
+Route::get('/posts/categorie/{category:slug}', [PostController::class, 'byCategory'])
+    ->name('posts.category');
+
+Route::get('/posts/tag/{tag:slug}', [PostController::class, 'byTag'])
+    ->name('posts.tag');
 
 Route::middleware('guest')->group(function () {
     Route::get('/inscription', [RegisterController::class, 'create'])->name('register');
@@ -28,6 +33,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/deconnexion', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
 Route::get('/mes-articles', [PostController::class, 'myPosts'])
     ->middleware('auth')
     ->name('my-posts');
@@ -35,11 +41,19 @@ Route::get('/mes-articles', [PostController::class, 'myPosts'])
 Route::middleware('writable')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::resource('posts', PostController::class)->except(['index', 'show']);
-        Route::patch('/posts/{post}/publication', [PostController::class, 'togglePublication'])->name('posts.publication');
+
+        Route::patch('/posts/{post}/publication', [PostController::class, 'togglePublication'])
+            ->name('posts.publication');
 
         Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
             Route::resource('categories', CategoryController::class)->except('show');
             Route::resource('tags', TagController::class)->except('show');
+
+            Route::get('/utilisateurs', [UserController::class, 'index'])
+                ->name('users.index');
+
+            Route::patch('/utilisateurs/{user}/role', [UserController::class, 'updateRole'])
+                ->name('users.role');
         });
     });
 

@@ -6,12 +6,18 @@
         <x-nav-link to="posts.index" match="posts.*">Articles</x-nav-link>
         <x-nav-link to="time">Heure</x-nav-link>
         <x-nav-link to="about">À propos</x-nav-link>
+
         @can('manage-categories')
             <x-nav-link to="admin.categories.index" match="admin.categories.*">Catégories</x-nav-link>
         @endcan
+
         @can('manage-tags')
             <x-nav-link to="admin.tags.index" match="admin.tags.*">Tags</x-nav-link>
         @endcan
+
+        @if (auth()->user()?->isAdmin())
+            <x-nav-link to="admin.users.index" match="admin.users.*">Utilisateurs</x-nav-link>
+        @endif
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
             @auth
