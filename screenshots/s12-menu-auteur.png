@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)http://localhost:8000/ -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil - Mini-CMS</title>
+    <script type="module" src="./s12-menu-auteur_files/client"></script><link rel="stylesheet" href="./s12-menu-auteur_files/app.css"><script type="module" src="./s12-menu-auteur_files/app.js.download"></script><script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://localhost:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Walk own enumerable keys so JSON.stringify cannot auto-invoke a proxy fake toJSON (e.g. Livewire's `$wire`) and fire a real request.
+    function toSafeValue(value, seen) {
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+        if (value instanceof Error) {
+            return { name: value.name, message: value.message, stack: value.stack };
+        }
+        // Date has no own enumerable keys, so the walk below would collapse it to {}.
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        if (seen.has(value)) {
+            return '[Circular]';
+        }
+        seen.add(value);
+        if (Array.isArray(value)) {
+            return value.map((item) => toSafeValue(item, seen));
+        }
+        const plain = {};
+        for (const key of Object.keys(value)) {
+            if (key === 'toJSON') continue;
+            try {
+                plain[key] = toSafeValue(value[key], seen);
+            } catch (e) {
+                plain[key] = '[Unreadable]';
+            }
+        }
+        return plain;
+    }
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        return JSON.stringify(toSafeValue(obj, new WeakSet()));
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: toSafeValue(event.reason, new WeakSet())
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+    <header class="bg-white border-b border-gray-200">
+    <nav class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2" aria-label="Navigation principale">
+        <a href="http://localhost:8000/" class="font-bold text-lg text-indigo-600 mr-4">Mini-CMS</a>
+
+        <a href="http://localhost:8000/" aria-current="page" class="px-3 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white">
+    Accueil
+</a>        <a href="http://localhost:8000/posts" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Articles
+</a>        <a href="http://localhost:8000/heure" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    Heure
+</a>        <a href="http://localhost:8000/a-propos" class="px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 hover:bg-gray-100">
+    À propos
+</a>
+        
+        
+        
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-gray-600">Affi Marah</span>
+
+                <form method="POST" action="http://localhost:8000/deconnexion">
+                    <input type="hidden" name="_token" value="8jOxTV3AVvxlzy0dQuEkOZRSO0MwdLZHP7FiGIN0" autocomplete="off">
+                    <button type="submit" class="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">Déconnexion</button>
+                </form>
+            
+                    </div>
+    </nav>
+</header>
+
+    <main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+                
+        <section class="py-10">
+        <h1 class="text-4xl font-bold mb-4">Bienvenue sur Mini-CMS</h1>
+        <p class="text-lg text-gray-600 mb-6 max-w-2xl">
+            Une petite plateforme de publication construite pas à pas pendant l'Atelier Framework Côté Serveur.
+        </p>
+        <a href="http://localhost:8000/posts" class="inline-block rounded-md bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700">
+            Lire les articles
+        </a>
+    </section>
+
+    <h2 class="text-2xl font-bold mb-4">Parcourir par catégorie</h2>
+    <ul class="mb-10 flex flex-wrap gap-3" aria-label="Catégories">
+                    <li>
+                <a href="http://localhost:8000/posts/categorie/bases-de-donnees" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Bases de données (2)</a>
+            </li>
+                    <li>
+                <a href="http://localhost:8000/posts/categorie/front-end" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Front-end (3)</a>
+            </li>
+                    <li>
+                <a href="http://localhost:8000/posts/categorie/laravel" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Laravel (4)</a>
+            </li>
+                    <li>
+                <a href="http://localhost:8000/posts/categorie/php" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">PHP (0)</a>
+            </li>
+                    <li>
+                <a href="http://localhost:8000/posts/categorie/test-ecriture-reactivee" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Test écriture réactivée (0)</a>
+            </li>
+            </ul>
+
+            <h2 class="text-2xl font-bold mb-4">Tags populaires</h2>
+        <ul class="mb-10 flex flex-wrap gap-3" aria-label="Tags populaires">
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/astuce" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Astuce (5)</a>
+                </li>
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/blade" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Blade (3)</a>
+                </li>
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/debutant" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Débutant (3)</a>
+                </li>
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/securite" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Sécurité (3)</a>
+                </li>
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/performance" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Performance (2)</a>
+                </li>
+                            <li>
+                    <a href="http://localhost:8000/posts/tag/tests" class="inline-block rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-indigo-600 hover:text-indigo-600">Tests (2)</a>
+                </li>
+                    </ul>
+    
+    <h2 class="text-2xl font-bold mb-4">Derniers articles publiés</h2>
+
+    <div class="grid gap-6 md:grid-cols-2">
+                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/9" class="hover:text-indigo-600">Qui saepe rerum</a>
+        </h2>
+            </div>
+
+    <p class="text-xs text-gray-500">
+                    <a href="http://localhost:8000/posts/categorie/front-end" class="underline hover:text-indigo-600">Front-end</a>
+                - par Nestor Hammes
+    </p>
+
+    <p class="text-sm text-gray-600">Non ut doloremque et. Quam totam eveniet similique quaerat tempora ducimus. Molestias et odit neque cupiditate ratione q...</p>
+
+            <ul class="flex flex-wrap gap-2" aria-label="Tags de l'article">
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/debutant" class="underline hover:text-indigo-600">
+                        Débutant
+                    </a>
+                </li>
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/blade" class="underline hover:text-indigo-600">
+                        Blade
+                    </a>
+                </li>
+                    </ul>
+    
+    <p class="text-xs text-gray-500">
+                    Publié le 24/09/2026 -
+            <a href="http://localhost:8000/posts/archive/2026" class="underline">Archive 2026</a>
+            </p>
+
+    <a href="http://localhost:8000/posts/9" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/6" class="hover:text-indigo-600">Voluptatem iste soluta</a>
+        </h2>
+            </div>
+
+    <p class="text-xs text-gray-500">
+                    <a href="http://localhost:8000/posts/categorie/bases-de-donnees" class="underline hover:text-indigo-600">Bases de données</a>
+                - par Nestor Hammes
+    </p>
+
+    <p class="text-sm text-gray-600">Et enim suscipit accusantium est. Sit dolor eius molestias voluptatibus laborum maiores. Aut blanditiis corrupti aliquid...</p>
+
+            <ul class="flex flex-wrap gap-2" aria-label="Tags de l'article">
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/astuce" class="underline hover:text-indigo-600">
+                        Astuce
+                    </a>
+                </li>
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/tests" class="underline hover:text-indigo-600">
+                        Tests
+                    </a>
+                </li>
+                    </ul>
+    
+    <p class="text-xs text-gray-500">
+                    Publié le 19/09/2026 -
+            <a href="http://localhost:8000/posts/archive/2026" class="underline">Archive 2026</a>
+            </p>
+
+    <a href="http://localhost:8000/posts/6" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>                    <article class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">
+            <a href="http://localhost:8000/posts/4" class="hover:text-indigo-600">At laboriosam soluta aperiam labore</a>
+        </h2>
+            </div>
+
+    <p class="text-xs text-gray-500">
+                    <a href="http://localhost:8000/posts/categorie/front-end" class="underline hover:text-indigo-600">Front-end</a>
+                - par Test User
+    </p>
+
+    <p class="text-sm text-gray-600">Ea cum quas ut explicabo suscipit cum et ut accusamus nam unde doloribus dignissimos odit sed minima.</p>
+
+            <ul class="flex flex-wrap gap-2" aria-label="Tags de l'article">
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/debutant" class="underline hover:text-indigo-600">
+                        Débutant
+                    </a>
+                </li>
+                            <li class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    <a href="http://localhost:8000/posts/tag/astuce" class="underline hover:text-indigo-600">
+                        Astuce
+                    </a>
+                </li>
+                    </ul>
+    
+    <p class="text-xs text-gray-500">
+                    Publié le 04/08/2026 -
+            <a href="http://localhost:8000/posts/archive/2026" class="underline">Archive 2026</a>
+            </p>
+
+    <a href="http://localhost:8000/posts/4" class="text-sm font-medium text-indigo-600 hover:underline">Lire l'article</a>
+</article>            </div>
+    </main>
+
+    <footer class="border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+        Mini-CMS - Atelier Framework Côté Serveur - ISET Sidi Bouzid
+    </footer>
+
+</body></html>
